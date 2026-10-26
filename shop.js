@@ -95,6 +95,33 @@
   var DEFAULT_PRODUCT = "maillot-domicile";
 
   /* ------------------------------------------------------------------
+     HABILLAGE PAR ÉQUIPE (voir team.js)
+     Les prix et les références (SKU) ne changent pas : seuls les noms,
+     les textes et les images prennent les couleurs du club choisi.
+     ------------------------------------------------------------------ */
+  var TEAM = window.KOP_TEAM || { isDefault: true, photos: true };
+  if (!TEAM.isDefault) {
+    var T = TEAM.short;
+    var dom = CATALOG["maillot-domicile"];
+    dom.name = "Maillot Domicile " + TEAM.full;
+    if (!TEAM.photos) {
+      dom.brand = "Kop Store";
+      dom.short = "Le maillot domicile aux couleurs de " + TEAM.full + ". Coupe régulière, tissu respirant et finitions ton sur ton.";
+    }
+    CATALOG["maillot-exterieur"].name = "Maillot Extérieur " + T;
+    CATALOG["short-domicile"].name = "Short Domicile " + T;
+    CATALOG["sweat-supporter"].name = "Sweat Capuche " + T;
+    CATALOG["echarpe"].name = "Écharpe Supporter " + T;
+    CATALOG["echarpe"].short = "L'écharpe tricotée aux couleurs de " + TEAM.full + ", indispensable pour le virage.";
+  }
+  if (TEAM.images) {
+    Object.keys(TEAM.images).forEach(function (pid) {
+      CATALOG[pid].image = TEAM.images[pid];
+      CATALOG[pid].images = [TEAM.images[pid]];
+    });
+  }
+
+  /* ------------------------------------------------------------------
      OUTILS
      ------------------------------------------------------------------ */
   var memoryStore = {};
@@ -262,7 +289,7 @@
 
     /* Le HTML de la page décrit le maillot domicile. Pour un autre produit
        (produit.html?id=...), on remplace les informations affichées. */
-    if (pid !== DEFAULT_PRODUCT) {
+    if (pid !== DEFAULT_PRODUCT || !TEAM.isDefault) {
       document.title = p.name + " | Kop Store";
       $("#product-name").textContent = p.name;
       $("#product-brand").textContent = p.brand;
@@ -289,6 +316,10 @@
       if (p.images.length < 2) $("#gallery-thumbs").hidden = true;
       $("#gallery-main-img").src = p.image;
       $("#gallery-main-img").alt = p.name;
+      if (pid === DEFAULT_PRODUCT && !TEAM.photos) {
+        var desc = $(".accordion details .acc-body p");
+        if (desc) desc.textContent = "Le maillot domicile aux couleurs de " + TEAM.full + ", pensé pour le stade comme pour la rue.";
+      }
     }
     $("#product-price").innerHTML = p.oldPrice ? euro(p.price) + ' <span class="price-old">' + euro(p.oldPrice) + "</span>" : euro(p.price);
 
@@ -771,7 +802,27 @@
     reset: function () { ["kop_cart", "kop_coupon", "kop_wishlist", "kop_last_order"].forEach(function (k) { save(k, null); }); updateCartCount(); toast("Boutique réinitialisée"); }
   };
 
+  function initTeamHome() {
+    if (TEAM.isDefault) return;
+    var h1 = $(".hero h1");
+    if (h1) h1.innerHTML = TEAM.words.map(function (w) { return esc(w) + "."; }).join(" ") + "<br><em>" + esc(TEAM.short) + ".</em>";
+    var img = $(".hero-visual img");
+    if (img && TEAM.images) { img.src = TEAM.images["maillot-domicile"]; img.alt = "Maillot domicile " + TEAM.full; img.classList.add("svg-jersey"); }
+    var p = $(".hero p");
+    if (p) p.textContent = "Le nouveau maillot domicile " + TEAM.full + " est arrivé. Flocage personnalisé, livraison en 24 h et tout le virage en boutique.";
+  }
+
+  /* Choix d'équipe fait à la page précédente : on prévient le crochet. */
+  function hookTeamSelected() {
+    var raw = null;
+    try { raw = sessionStorage.getItem("kop_team_selected"); sessionStorage.removeItem("kop_team_selected"); } catch (e) { /* rien */ }
+    if (!raw) return;
+    try { var d = JSON.parse(raw); hook("selectTeam", { team: d.team, teamName: TEAM.name, previousTeam: d.previous || null }); } catch (e) { /* rien */ }
+  }
+
   function init() {
+    initTeamHome();
+    hookTeamSelected();
     updateCartCount();
     initShopList();
     initProduct();
